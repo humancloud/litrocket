@@ -1,0 +1,35 @@
+package errmsg
+
+const (
+	// Success
+	OK_SUCCESS = iota + 1000
+
+	// Sign In Error
+	ERR_NOSUCHUSER    // 1001
+	ERR_ALEALDYSIGNIN // 1002
+	ERR_WRONGPASSWD   // 1003
+
+	// Sign Up Error
+	ERR_NAMEREPEAT // 1004
+	ERR_MAILREPEAT // 1005
+	ERR_CODEERROR  // 1006
+
+	// Fotgot password.
+	ERR_MAILWRONG // 1007
+
+	// Friend Error
+	ERR_FRIEND_NO_EXIST // 1008
+	ERR_ALEALDY_FRIEND  // 1009
+
+	// Group Error
+	ERR_ALEALDY_GROUP // 1010
+	ERR_NOSUCHGROUP   //1011
+
+	// File Error
+	ERR_RECEIVE_ERROR // 1012
+	ERR_SEND_ERROR    // 1013
+	ERR_FILE_NO_EXIST // 1014
+
+	// Unknown Error
+	ERR_UNKNOWN // 1015
+)
