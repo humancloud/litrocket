@@ -24,6 +24,12 @@ func AddFriend(json []byte) {
 	var (
 		err    error
 		friend Friend
+
+		result struct {
+			Url    string
+			Code   int
+			Friend model.User
+		}
 	)
 
 	if err = dataencry.Unmarshal(json, &friend); err != nil {
@@ -36,49 +42,23 @@ func AddFriend(json []byte) {
 		return
 	}
 
-	model.AddFriend(friend.SrcID, UserID(user.ID))
+	result.Url = "add/friresult"
+	result.Friend, result.Code = model.AddFriend(friend.SrcID, UserID(user.ID))
 
-	// 被加的用户在线,发送消息
+	//被加的用户在线,发送消息
 	if val, ok := AllUsers.Load(friend.DestID); ok {
 		conns := val.(Conns)
-		conns.ResponseConn.Write(json)
+		b := append(json, []byte("\r\n--\r\n")...)
+		conns.ResponseConn.Write(b)
 	}
 
-	// 不在线,暂时存到数据库表,登录时显示
-}
-
-// I Agree friend request.
-func Agree(json []byte) {
-	var (
-		err    error
-		friend Friend
-		r      []byte
-		result FriResult
-	)
-	if err := dataencry.Unmarshal(json, &friend); err != nil {
-		return
-	}
-
-	i := model.AddFriendOk(friend.SrcID, friend.DestID)
-
-	// 加我的用户在线,则发送通知,不在线只需更改数据库
-	if val, ok := AllUsers.Load(friend.DestID); ok {
+	// 返回加好友的结果
+	if val, ok := AllUsers.Load(friend.SrcID); ok {
 		conns := val.(Conns)
-
-		result.Code = i
-		result.FriendID = friend.DestID
-		result.Url = friend.Url
-
-		if r, err = dataencry.Marshal(result); err != nil {
-			return
-		}
+		b, _ := dataencry.Marshal(result)
+		r := append(b, []byte("\r\n--\r\n")...)
 		conns.ResponseConn.Write(r)
 	}
-}
-
-// 不同意好友请求
-func NoAgree(json []byte) {
-	// 在数据库中删除即可,不需其他操作
 }
 
 func GetAllFriend(json []byte) {

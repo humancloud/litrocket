@@ -129,24 +129,6 @@ WRITE:
 	if conns, ok := AllUsers.Load(video.SrcID); ok {
 		conn := conns.(Conns)
 		conn.VideoConn.Write(r)
-		// 	for {
-		// 		if n, err = conn.VideoConn.Read(buf); err != nil { //一次最多读取65535
-		// 			delete(joinuser, video.SrcID)
-		// 			handlelog.Handlelog("WARNING", "Video断开连接")
-		// 			return
-		// 		}
-
-		// 		if v, ok := joinuser[video.SrcID]; ok && v.Front() != nil { //有用户加入时才会给用户发送,即取出来的链表的第一个元素不为空
-		// 			for e := v.Front(); e != nil; e = e.Next() {
-		// 				s := e.Value.(Join)
-		// 				if _, err := s.Conn.Write(buf[:n]); err != nil {
-		// 					// 用户退出共享
-		// 					v.Remove(e)
-		// 					return
-		// 				}
-		// 			}
-		// 		}
-		// 	}
 	}
 }
 

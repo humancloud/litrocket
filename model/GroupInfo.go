@@ -12,10 +12,8 @@ const (
 	GROUPIMGDIR = "tempfile/headimg/group/"
 )
 
-//GroupInfo 为数据库表GroupInfo的模型
 type GroupInfo struct {
-	//model中已经包含，ID,createtime,updatetime,deletetime字段
-	gorm.Model
+	gorm.Model          // model中已经包含，ID,createtime,updatetime,deletetime字段
 	GroupName    string `gorm:"type:varchar(20);not null"`
 	GroupImage   string `gorm:"type:varchar(255)"`
 	GroupTips    string `gorm:"type:varchar(4096)"`
@@ -23,6 +21,7 @@ type GroupInfo struct {
 	GroupUserNum int    `gorm:"type:int;not null"` // (人数达到200为满)
 }
 
+// Create A New Group And It's Info.
 func CreateGroupInfo(group GroupInfo) UserID {
 	var g GroupInfo
 	result := Db.Create(&group)
@@ -36,6 +35,7 @@ func CreateGroupInfo(group GroupInfo) UserID {
 	return UserID(g.ID)
 }
 
+// Delete A Group And It's Info.
 func DelGroupInfo(groupid UserID) {
 	result := Db.Where("id = ?", groupid).Delete(GroupInfo{})
 	if result.Error != nil {
@@ -43,24 +43,22 @@ func DelGroupInfo(groupid UserID) {
 	}
 }
 
+// Group Is Exist ?
 func SearchGroupExist(name string) bool {
 	var g []GroupInfo
-	Db.Where("group_name = ?", name).Find(&g)
-	if len(g) > 0 {
-		return true
-	}
 
-	return false
+	Db.Where("group_name = ?", name).Find(&g)
+	return len(g) > 0
 }
 
+// Get Group's ID By Search Group Name.
 func SearchGroupIdByName(name string) UserID {
 	var group GroupInfo
 	Db.Where("group_name = ?", name).First(&group)
 	return UserID(group.ID)
 }
 
-// 不向客户端发送群聊头像，那样JSON太大
-// 发送结构体内的除GroupImage以外的所有东西
+// Search GroupName By LIKE Name.
 func SearchGroupByName(name string) []GroupInfo {
 	var groups []GroupInfo
 	result := Db.Where("group_name LIKE ?", "%"+name+"%").Find(&groups)
@@ -70,12 +68,14 @@ func SearchGroupByName(name string) []GroupInfo {
 	return groups
 }
 
+// Get Some Group's Info.
 func GetGroupInfo(GroupID UserID) GroupInfo {
 	var group GroupInfo
 	Db.Where("id = ?", GroupID).First(&group)
 	return group
 }
 
+// Edit Group's tips.
 func EditGroupTips(ID UserID, Tips *string) int {
 	result := Db.Model(&GroupInfo{}).Where("id = ?", ID).Update("group_tips", *Tips)
 	if result.Error != nil {
@@ -85,12 +85,14 @@ func EditGroupTips(ID UserID, Tips *string) int {
 	return errmsg.OK_SUCCESS
 }
 
+// Get Group's HeadImg.
 func GetGroupImg(ID UserID) string {
 	var group GroupInfo
 	Db.Where("id = ?", ID).First(&group)
 	return group.GroupImage
 }
 
+// Upload Group's HeadImg.
 func UploadGroupImage(img string, ID UserID) {
 	Db.Model(&GroupInfo{}).Where("id = ?", ID).Update("group_image", img)
 }

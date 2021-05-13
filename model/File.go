@@ -41,15 +41,19 @@ func ViewGroupFiles(groupid common.UserID) []File {
 	return files
 }
 
-func DeleteGroupFile(filename string, ID common.UserID) int {
+func DeleteGroupFile(filename string, srcid common.UserID, ID common.UserID) (int, string) {
 	var file File
-	result := Db.Where("filename = ? AND dest_id = ? AND file_type = ?", filename, ID, GROUPFILE).First(&file).Delete(File{})
+	result := Db.Where("filename = ? AND src_id = ? AND dest_id = ? AND file_type = ?", filename, srcid, ID, GROUPFILE).First(&file).Delete(File{})
 	if result.Error != nil {
 		handlelog.Handlelog("WARNING", "DeleteGroupFile"+result.Error.Error())
-		return -1
+		return -1, ""
 	}
 
-	return errmsg.OK_SUCCESS
+	if result.RowsAffected != 1 {
+		return -1, ""
+	}
+
+	return errmsg.OK_SUCCESS, file.FileLocation
 }
 
 func GetGroupFileLocation(filename string, ID common.UserID) (string, int64) {

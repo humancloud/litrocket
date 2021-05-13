@@ -1,7 +1,6 @@
 package apiv1
 
 import (
-	"fmt"
 	"io"
 	. "litrocket/common"
 	"litrocket/model"
@@ -26,6 +25,7 @@ type GroupResult struct {
 	GroupID UserID
 }
 
+// Create A New Group.
 func CreateGroup(json []byte) {
 	var (
 		G     model.GroupInfo
@@ -46,12 +46,13 @@ func CreateGroup(json []byte) {
 		return
 	}
 
-	// 查询名称是否重复
+	// Group Is Already Exist ?
 	if ok := model.SearchGroupExist(group.GroupName); ok {
 		result.Code = -1
 		goto WRITE
 	}
 
+	//* Create A New Group.
 	G = model.GroupInfo{GroupName: group.GroupName, GroupRootID: group.RootID, GroupUserNum: 1}
 	id = model.CreateGroupInfo(G)
 	g = model.Group{GroupID: id, UserRole: 0, UserID: group.RootID, UserState: 0}
@@ -81,37 +82,7 @@ func AddGroup(json []byte) {
 	id := model.SearchGroupIdByName(group.GroupName)
 
 	// 直接添加到数据库
-	model.AddGroup(group.MyID, id)
-
-	// 获取管理员ID,管理员在线则发送消息,不在线则进入数据库
-	//if conns, ok := AllUsers.Load(group.MyID); ok {
-	//	conn := conns.(Conns)
-	//	conn.ResponseConn.Write(json)
-	//}
-}
-
-func AddGroupOk(json []byte) {
-	var (
-		group  Group
-		err    error
-		result GroupResult
-	)
-
-	if err = dataencry.Unmarshal(json, &group); err != nil {
-		return
-	}
-
-	i := model.AddGroupOk(group.MyID, group.GroupID)
-	result.Code = i
-	result.GroupID = group.GroupID
-	result.Url = group.Url
-
-	r, _ := dataencry.Marshal(result)
-
-	if conns, ok := AllUsers.Load(group.MyID); ok {
-		conn := conns.(Conns)
-		conn.ResponseConn.Write(r)
-	}
+	model.JoinGroup(group.MyID, id)
 }
 
 func GetAllGroup(json []byte) {
@@ -181,7 +152,7 @@ func DelGroup(json []byte) {
 		return
 	}
 
-	model.DelGroup(group.MyID, group.GroupID)
+	model.QuitGroup(group.MyID, group.GroupID)
 }
 
 func UploadGroupImage(json []byte) {
@@ -285,6 +256,7 @@ func SearchGroupByName(json []byte) {
 		group  Group
 		err    error
 		result struct {
+			Url    string
 			Groups []string
 		}
 	)
@@ -297,12 +269,12 @@ func SearchGroupByName(json []byte) {
 	for i := 0; i < len(Groups); i++ {
 		result.Groups = append(result.Groups, Groups[i].GroupName)
 	}
+	result.Url = group.Url
 	r, _ := dataencry.Marshal(result)
-
-	fmt.Println(string(r))
 
 	if conns, ok := AllUsers.Load(group.MyID); ok {
 		conn := conns.(Conns)
-		conn.RequestConn.Write(r)
+		json := append(r, []byte("\r\n--\r\n")...)
+		conn.ResponseConn.Write(json)
 	}
 }

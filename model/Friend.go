@@ -15,20 +15,14 @@ type Friend struct {
 }
 
 // AddFriend
-func AddFriend(MyID, FriendID UserID) int {
+func AddFriend(MyID, FriendID UserID) (User, int) {
+	var user User
 	var users []User
-	var friends []Friend
 
 	// Search User exist ?
 	result := Db.Where("id = ?", FriendID).Find(&users)
 	if result.RowsAffected != 1 {
-		return errmsg.ERR_FRIEND_NO_EXIST
-	}
-
-	// Search we already are friends.
-	result = Db.Where("user_id = ? AND friend_id = ?", MyID, FriendID).Find(&friends)
-	if result.RowsAffected > 0 {
-		return errmsg.ERR_ALEALDY_FRIEND
+		return user, errmsg.ERR_FRIEND_NO_EXIST
 	}
 
 	// Create
@@ -36,17 +30,17 @@ func AddFriend(MyID, FriendID UserID) int {
 	result = Db.Create(&friend)
 	if result.RowsAffected != 1 || result.Error != nil {
 		handlelog.Handlelog("WARNING", "AddFriend() :"+result.Error.Error())
-		return errmsg.ERR_UNKNOWN
+		return user, errmsg.ERR_UNKNOWN
 	}
 
 	friend = Friend{FriendID, MyID, 0, ""}
 	result = Db.Create(&friend)
 	if result.RowsAffected != 1 || result.Error != nil {
 		handlelog.Handlelog("WARNING", "AddFriend() :"+result.Error.Error())
-		return errmsg.ERR_UNKNOWN
+		return user, errmsg.ERR_UNKNOWN
 	}
 
-	return errmsg.OK_SUCCESS
+	return users[0], errmsg.OK_SUCCESS
 }
 
 // I Agree friend request.

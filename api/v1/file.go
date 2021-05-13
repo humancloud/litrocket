@@ -1,8 +1,10 @@
 package apiv1
 
 import (
+	"fmt"
 	"io"
 	"math/rand"
+	"strings"
 
 	. "litrocket/common"
 	"litrocket/model"
@@ -148,8 +150,10 @@ func ViewGroupFiles(json []byte) {
 // deletegroupfile
 func DeleteGroupFile(json []byte) {
 	var (
-		file   Filetran
-		result struct {
+		file     Filetran
+		location string
+		result   struct {
+			Url  string
 			Code int // -1 failed. errmsg.OK_SUCCESS success.
 		}
 	)
@@ -158,13 +162,23 @@ func DeleteGroupFile(json []byte) {
 		return
 	}
 
-	// 暂时不删除文件，只删除数据库记录
-	result.Code = model.DeleteGroupFile(file.Filename, file.DestID)
+	// 删除数据库记录
+	result.Url = file.Url
+	result.Code, location = model.DeleteGroupFile(file.Filename, file.SrcID, file.DestID)
 
+	// 删除文件
+	if location != "" && -1 == strings.Index(location, "../") {
+		if location[0:9] == "tempfile/" {
+			os.Remove(location)
+		}
+	}
+
+	// 发送结果
 	if conns, ok := AllUsers.Load(file.SrcID); ok {
 		conn := conns.(Conns)
 		r, _ := dataencry.Marshal(result)
-		conn.FileConn.Write(r)
+		conn.ResponseConn.Write(r)
+		conn.ResponseConn.Write([]byte("\r\n--\r\n"))
 	}
 }
 
@@ -173,30 +187,23 @@ func DownloadGroupFile(json []byte) {
 	var (
 		fileconn net.Conn
 		file     Filetran
-		result   struct {
-			Code int
-		}
 	)
 
 	if err := dataencry.Unmarshal(json, &file); err != nil {
 		return
 	}
 
+	filelocation, filelen := model.GetGroupFileLocation(file.Filename, file.DestID)
+
 	if conns, ok := AllUsers.Load(file.SrcID); ok {
 		conn := conns.(Conns)
 		fileconn = conn.FileConn
 	}
 
-	filelocation, filelen := model.GetGroupFileLocation(file.Filename, file.DestID)
-
 	if filelocation != "" {
 		if f, err := os.Open(filelocation); err == nil {
 			sendfile(f, fileconn, filelen)
 		}
-
-		result.Code = errmsg.ERR_FILE_NO_EXIST
-		b, _ := dataencry.Marshal(result)
-		fileconn.Write(b)
 	}
 }
 
@@ -324,11 +331,11 @@ func sendfile(f *os.File, conn net.Conn, filelen int64) int {
 		size int64
 		n    int
 		err  error
-		buf  = make([]byte, 10*1024*1024)
+		buf  = make([]byte, 65536)
 	)
 
 	//Write...
-	for size = 0; size != filelen; size += int64(n) {
+	for size = 0; size < filelen; size += int64(n) {
 		// Read From File.
 		if n, err = f.Read(buf); err != nil {
 			if err == io.EOF {
@@ -336,6 +343,8 @@ func sendfile(f *os.File, conn net.Conn, filelen int64) int {
 			}
 			return errmsg.ERR_SEND_ERROR
 		}
+
+		fmt.Println(n)
 
 		// Write to Dest.
 		if _, err = conn.Write(buf[:n]); err != nil {

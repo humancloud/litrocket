@@ -80,9 +80,8 @@ func personalmess(buf []byte, chatmess *ChatMess) {
 
 	switch r {
 	case 0:
-		if _, err := destconn.Write(buf); err != nil {
-			handlelog.Handlelog("WARNING", "ChatServer:sendMess:Write"+err.Error())
-		}
+		json := append(buf, []byte("\r\n--\r\n")...)
+		destconn.Write(json)
 	case 1:
 		// Image Message.
 		if chatmess.MessFormat == 1 {

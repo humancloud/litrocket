@@ -131,6 +131,7 @@ func EditUserTips(json []byte) {
 func SearchUserByName(json []byte) {
 	var user User
 	var result struct {
+		Url   string
 		Users []string
 	}
 
@@ -143,9 +144,12 @@ func SearchUserByName(json []byte) {
 		result.Users = append(result.Users, Users[i].UserName)
 	}
 
+	result.Url = user.Url
+
 	if conns, ok := AllUsers.Load(user.Id); ok {
 		conn := conns.(Conns)
 		b, _ := dataencry.Marshal(result)
-		conn.ResponseConn.Write(b)
+		json := append(b, []byte("\r\n--\r\n")...)
+		conn.ResponseConn.Write(json)
 	}
 }

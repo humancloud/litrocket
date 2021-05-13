@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	apiv1 "litrocket/api/v1"
 )
 
@@ -41,6 +42,7 @@ const (
 	UpGroupFile   = "upgroup/file"
 	DownGroupFile = "downgroup/file"
 	ViewGroupFile = "viewgroup/file"
+	DelGroupFile  = "delgroup/file"
 	// Video
 	JoinVideo = "join/screen"
 	QuitVideo = "quit/video"
@@ -61,14 +63,14 @@ func InitRouter() {
 	routerv1[EditUserTips] = apiv1.EditUserTips
 	//friend.
 	routerv1[AddFriend] = apiv1.AddFriend
-	routerv1[AddFriendOk] = apiv1.Agree
+	//routerv1[AddFriendOk] = apiv1.Agree
 	routerv1[GetAllFrend] = apiv1.GetAllFriend
 	routerv1[GetFriendInfo] = apiv1.GetFriendInfo
 	routerv1[DeleteFriend] = apiv1.DelFriend
 	routerv1[RecommFrend] = apiv1.FriendRecommand
 	//group.
 	routerv1[AddGroup] = apiv1.AddGroup
-	routerv1[AddGroupOk] = apiv1.AddGroupOk
+	//routerv1[AddGroupOk] = apiv1.AddGroupOk
 	routerv1[CreGroup] = apiv1.CreateGroup
 	routerv1[GetAllGroup] = apiv1.GetAllGroup
 	routerv1[GetGroupInfo] = apiv1.GetGroupInfo
@@ -85,6 +87,7 @@ func InitRouter() {
 	routerv1[UpGroupFile] = apiv1.UploadGroupFile
 	routerv1[DownGroupFile] = apiv1.DownloadGroupFile
 	routerv1[ViewGroupFile] = apiv1.ViewGroupFiles
+	routerv1[DelGroupFile] = apiv1.DeleteGroupFile
 	//news
 	//video
 	routerv1[JoinVideo] = apiv1.JoinScreen
@@ -95,6 +98,7 @@ func InitRouter() {
 }
 
 func Run(url string, json []byte) {
+	fmt.Println(url)
 	if fuc, ok := routerv1[url]; ok {
 		go fuc(json)
 	}
