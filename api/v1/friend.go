@@ -30,6 +30,11 @@ func AddFriend(json []byte) {
 			Code   int
 			Friend model.User
 		}
+
+		mess struct {
+			Url    string
+			Friend model.User
+		}
 	)
 
 	if err = dataencry.Unmarshal(json, &friend); err != nil {
@@ -45,10 +50,13 @@ func AddFriend(json []byte) {
 	result.Url = "add/friresult"
 	result.Friend, result.Code = model.AddFriend(friend.SrcID, UserID(user.ID))
 
-	//被加的用户在线,发送消息
-	if val, ok := AllUsers.Load(friend.DestID); ok {
+	// 被加的用户在线,发送消息
+	if val, ok := AllUsers.Load(UserID(user.ID)); ok { //! 大坑, 如果不把ID转为UserID类型,就会检测出不在线,查询时不仅KEY的值要一样,而且KEY的类型也要和存这个键值对的时候一样
+		mess.Url = friend.Url
+		mess.Friend, _ = model.SearchByID(friend.SrcID)
 		conns := val.(Conns)
-		b := append(json, []byte("\r\n--\r\n")...)
+		r, _ := dataencry.Marshal(mess)
+		b := append(r, []byte("\r\n--\r\n")...)
 		conns.ResponseConn.Write(b)
 	}
 
@@ -136,7 +144,8 @@ func DelFriend(json []byte) {
 	// 目标在线则通知,不在线不通知
 	if conns, ok := AllUsers.Load(friend.DestID); ok {
 		conn := conns.(Conns)
-		conn.ResponseConn.Write(json)
+		b := append(json, []byte("\r\n--\r\n")...)
+		conn.ResponseConn.Write(b)
 	}
 }
 

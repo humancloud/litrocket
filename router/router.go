@@ -49,6 +49,10 @@ const (
 	SendVideo = "send/screen"
 	EndVideo  = "end/video"
 	SeaVideo  = "sea/video"
+	// PersonalDict
+	PersonalChiDict = "sea/chidict"
+	PersonalEnglish = "sea/engdict"
+	PushWord        = "push/word"
 )
 
 var routerv1 = make(map[string]func(json []byte))
@@ -95,6 +99,10 @@ func InitRouter() {
 	routerv1[SendVideo] = apiv1.SendScreen
 	routerv1[EndVideo] = apiv1.EndScreen
 	routerv1[SeaVideo] = apiv1.SeaVideo
+	// Dict
+	routerv1[PersonalChiDict] = apiv1.PersonalChiDict
+	routerv1[PersonalEnglish] = apiv1.PersonalEngDict
+	routerv1[PushWord] = apiv1.PushWord
 }
 
 func Run(url string, json []byte) {
@@ -102,4 +110,6 @@ func Run(url string, json []byte) {
 	if fuc, ok := routerv1[url]; ok {
 		go fuc(json)
 	}
+
+	// todo 只有chat,file创建协程,file好像也不能创建新协程,不然客户端同时上传几个文件,又是一个连接就乱了啊.这里的并发需要再考虑,可能会问
 }

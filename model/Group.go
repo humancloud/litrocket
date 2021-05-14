@@ -25,24 +25,32 @@ func CreateGroup(group Group) {
 // Search Group's UserID And Number of Group's user.
 func SearchGroupUser(groupusers []UserID, DestID UserID) int64 {
 	var (
-		i     int64
-		num   int64
-		users []Group
+		i      int
+		num    int
+		groups []Group
 	)
 
-	Db.Where("group_id = ?", DestID).Find(&users)
-	num = int64(len(users))
+	Db.Where("group_id = ?", DestID).Find(&groups)
+	num = len(groups)
 
 	for i = 0; i < num; i++ {
-		groupusers[i] = users[i].UserID
+		groupusers[i] = groups[i].UserID
 	}
 
-	return num
+	return int64(num)
 }
 
 // Join A Group
 // todo Join A Group Need Group Manager's Agree.
 func JoinGroup(userid, groupid UserID) int {
+	var groups []Group
+
+	// Query User Is Already In Group ?
+	Db.Where("group_id = ? AND user_id = ?", groupid, userid).Find(&groups)
+	if len(groups) > 0 {
+		return -1
+	}
+
 	group := Group{GroupID: groupid, UserRole: 1, UserID: userid, UserState: 0}
 	if result := Db.Create(group); result.Error != nil {
 		handlelog.Handlelog("WARNING", "JoinGroup + Db.Create"+result.Error.Error())

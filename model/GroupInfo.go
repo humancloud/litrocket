@@ -52,10 +52,15 @@ func SearchGroupExist(name string) bool {
 }
 
 // Get Group's ID By Search Group Name.
-func SearchGroupIdByName(name string) UserID {
-	var group GroupInfo
-	Db.Where("group_name = ?", name).First(&group)
-	return UserID(group.ID)
+func SearchGroup(name string) (GroupInfo, int) {
+	var t GroupInfo
+	var group []GroupInfo
+	Db.Where("group_name = ?", name).Find(&group)
+	if len(group) != 1 {
+		return t, -1
+	}
+
+	return group[0], errmsg.OK_SUCCESS
 }
 
 // Search GroupName By LIKE Name.

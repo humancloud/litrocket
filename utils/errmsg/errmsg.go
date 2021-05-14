@@ -31,6 +31,9 @@ const (
 	ERR_FILE_NO_EXIST    // 1014
 	ERR_WRONG_FILE_OWNER //1015
 
+	// DICT
+	ERR_DICT_PUSH_REPEAT //
+
 	// Unknown Error
 	ERR_UNKNOWN // 1016
 )

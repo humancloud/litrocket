@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	. "litrocket/common"
 	"litrocket/utils/dataencry"
+	"litrocket/utils/errmsg"
 	"litrocket/utils/handlelog"
 	"net"
 	"net/http"
@@ -154,6 +155,31 @@ func EndScreen(json []byte) {
 	}
 }
 
+// 查询好友是否在共享
 func SeaVideo(json []byte) {
+	var (
+		video  Video
+		result struct {
+			Url  string
+			Code int
+		}
+	)
 
+	if err := dataencry.Unmarshal(json, &video); err != nil {
+		return
+	}
+
+	result.Code = -1
+	result.Url = video.Url
+
+	if _, ok := joinuser[video.DestID]; ok {
+		result.Code = errmsg.OK_SUCCESS
+	}
+
+	if conns, ok := AllUsers.Load(video.SrcID); ok {
+		conn := conns.(Conns)
+		b, _ := dataencry.Marshal(result)
+		r := append(b, []byte("\r\n--\r\n")...)
+		conn.ResponseConn.Write(r)
+	}
 }

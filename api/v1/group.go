@@ -38,13 +38,17 @@ func CreateGroup(json []byte) {
 		}
 
 		result struct {
-			Code int
+			Url   string
+			Code  int
+			Group model.GroupInfo
 		}
 	)
 
 	if err := dataencry.Unmarshal(json, &group); err != nil {
 		return
 	}
+
+	result.Url = group.Url
 
 	// Group Is Already Exist ?
 	if ok := model.SearchGroupExist(group.GroupName); ok {
@@ -58,20 +62,28 @@ func CreateGroup(json []byte) {
 	g = model.Group{GroupID: id, UserRole: 0, UserID: group.RootID, UserState: 0}
 	model.CreateGroup(g)
 
-	result.Code = 0
+	result.Code = errmsg.OK_SUCCESS
+	result.Group.ID = uint(id)
+	result.Group.GroupName = group.GroupName
 
 WRITE:
 	r, _ := dataencry.Marshal(result)
 	if conns, ok := AllUsers.Load(group.RootID); ok {
 		conn := conns.(Conns)
-		conn.RequestConn.Write(r)
+		b := append(r, []byte("\r\n--\r\n")...)
+		conn.ResponseConn.Write(b)
 	}
 }
 
 func AddGroup(json []byte) {
 	var (
-		group Group
-		err   error
+		group  Group
+		err    error
+		result struct {
+			Url   string
+			Code  int
+			Group model.GroupInfo
+		}
 	)
 
 	if err = dataencry.Unmarshal(json, &group); err != nil {
@@ -79,10 +91,19 @@ func AddGroup(json []byte) {
 	}
 
 	// 查询群聊id
-	id := model.SearchGroupIdByName(group.GroupName)
+	result.Url = "add/groupresult"
+	result.Group, result.Code = model.SearchGroup(group.GroupName)
+	if result.Code == errmsg.OK_SUCCESS {
+		// 直接添加到数据库
+		result.Code = model.JoinGroup(group.MyID, UserID(result.Group.ID))
+	}
 
-	// 直接添加到数据库
-	model.JoinGroup(group.MyID, id)
+	b, _ := dataencry.Marshal(result)
+	r := append(b, []byte("\r\n--\r\n")...)
+	if conns, ok := AllUsers.Load(group.MyID); ok {
+		conn := conns.(Conns)
+		conn.ResponseConn.Write(r)
+	}
 }
 
 func GetAllGroup(json []byte) {
@@ -144,15 +165,33 @@ func GetGroupInfo(json []byte) {
 
 func DelGroup(json []byte) {
 	var (
-		group Group
-		err   error
+		i          int64
+		group      Group
+		err        error
+		groupusers = make([]UserID, 200)
 	)
 
 	if err = dataencry.Unmarshal(json, &group); err != nil {
 		return
 	}
 
+	// 查询群聊的人数,先查询后删除群聊
+	num := model.SearchGroupUser(groupusers, group.GroupID)
+
 	model.QuitGroup(group.MyID, group.GroupID)
+
+	// 向在线的群成员发送xx退出群聊消息,或是群聊解散消息
+	for i = 0; i < num; i++ {
+		if group.MyID == groupusers[i] {
+			continue
+		}
+
+		if conns, ok := AllUsers.Load(groupusers[i]); ok {
+			conn := conns.(Conns)
+			b := append(json, []byte("\r\n--\r\n")...)
+			conn.ResponseConn.Write(b)
+		}
+	}
 }
 
 func UploadGroupImage(json []byte) {
