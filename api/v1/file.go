@@ -46,7 +46,6 @@ func UploadGroupFile(json []byte) {
 		return
 	}
 
-	// 判断名字是否重复，重复不可上传
 	// New Dir, dir's name is "group + groupid"
 	dir := tempfile + "group" + strconv.Itoa(int(file.DestID))
 	if _, err = os.Stat(dir); err != nil && !os.IsExist(err) {
@@ -56,7 +55,7 @@ func UploadGroupFile(json []byte) {
 		}
 	}
 
-	// New File.
+	// New File, File's Name Is "tempfile/filename-time-rand number"
 	newfile := dir + "/" + file.Filename + time.Now().Format("2006-01-02-15:04:02") + strconv.Itoa(rand.Intn(100))
 	f, err := os.Create(newfile)
 	if err != nil {

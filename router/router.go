@@ -106,10 +106,18 @@ func InitRouter() {
 }
 
 func Run(url string, json []byte) {
-	fmt.Println(url)
+	fmt.Println(json)
 	if fuc, ok := routerv1[url]; ok {
-		go fuc(json)
+		fuc(json)
 	}
 
-	// todo 只有chat,file创建协程,file好像也不能创建新协程,不然客户端同时上传几个文件,又是一个连接就乱了啊.这里的并发需要再考虑,可能会问
+	//! API不能直接创建新协程处理,若用户连续多个请求,服务端又同时向客户端返回数据,客户端一个Resp连接接收必然出错.
+	//! File 单线程的话,时间很久,绝不行.
+	//! Video 目前是调用另外的一个应用处理媒体数据转发,所以可以不用新协程.
+	//! Chat 多协程的话,向一个用户连续发两条消息,两个协程同时给对方发送,一定出错.
+	//* 因此: Chat还是单协程,因为把chat另起一个应用的话时间也并不会更快.
+	//* Video 如果不另起一个应用,那就在videoAPI里面创建协程处理.
+	//* File  搭建一个FTP应用.
+	//* 其他API处理速度较快,都是单协程.
+	//* 像File,Video 后续要加的东西较多,且处理时间可能会很长,因此不应算作API里面,应当是属于额外模块.   Chat要加图片消息,语音消息,其实也没什么好加的,Chat还可以继续在API里面,最好是独立为模块
 }

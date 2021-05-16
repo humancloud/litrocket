@@ -13,6 +13,8 @@ type Dict struct {
 	English string
 }
 
+// 根据中文模糊搜索单词并返回匹配的单词
+// todo 结果特别多的情况下(超过1MB的数据,三千条记录才200K),分批返回,估计不会特别大,因为单词数量还较小.
 func PersonalChiDict(json []byte) {
 	var (
 		dict   Dict
