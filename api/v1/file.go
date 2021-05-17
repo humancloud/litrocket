@@ -5,6 +5,7 @@ import (
 	"io"
 	"math/rand"
 	"strings"
+	"sync"
 
 	. "litrocket/common"
 	"litrocket/model"
@@ -21,6 +22,9 @@ const (
 	tempfile = "tempfile/"
 )
 
+// Lock
+var mutex sync.Mutex
+
 //Filetran
 type Filetran struct {
 	Url      string
@@ -31,15 +35,12 @@ type Filetran struct {
 	DestID   UserID
 }
 
-// uploadgroupfile
+// Upload Group File
+// todo 还不能多文件同时上传
 func UploadGroupFile(json []byte) {
 	var (
 		file Filetran
 		err  error
-		r    struct {
-			Url  string
-			Code int
-		}
 	)
 
 	if err = dataencry.Unmarshal(json, &file); err != nil {
@@ -62,36 +63,48 @@ func UploadGroupFile(json []byte) {
 		handlelog.Handlelog("WARNING", "groupfile"+"addgroupfile"+"os.Create"+err.Error())
 		return
 	}
-	defer f.Close()
 
-	// Receive File.
-	if conns, ok := AllUsers.Load(file.SrcID); ok {
-		conn := conns.(Conns)
-		r.Code = receive(f, conn.FileConn, file.Size)
-		r.Url = file.Url
-		result, _ := dataencry.Marshal(r)
-		conn.ResponseConn.Write(result)
-		conn.ResponseConn.Write([]byte("\r\n--\r\n"))
-	}
+	//* 创建新协程来接收文件,不卡主协程,不然文件大的话,时间会很长.
+	go func() {
+		var r struct {
+			Url  string
+			Code int
+		}
 
-	// Save Record to DataBase.
-	if r.Code == errmsg.OK_SUCCESS {
-		now := time.Now().Format("2006-01-02 15:04:02")
-		file := model.File{
-			Filetime:     now,
-			FileSize:     file.Size,
-			Filename:     file.Filename,
-			SrcName:      file.SrcName,
-			FileLocation: newfile,
-			SrcID:        file.SrcID,
-			DestID:       file.DestID,
-			FileType:     model.GROUPFILE,
-			FileState:    model.STROAGE}
-		model.UploadGroupFile(&file)
-	}
+		// Receive File.
+		if conns, ok := AllUsers.Load(file.SrcID); ok {
+			conn := conns.(Conns)
+			r.Code = receive(f, conn.FileConn, file.Size)
+			r.Url = file.Url
+			result, _ := dataencry.Marshal(r)
+			b := append(result, []byte("\r\n--\r\n")...)
+			//* 这里需要加锁,这样就不会同时间多协程向客户端Resp发送消息,不过有可能第一个协程已经发送一半,而这里又发送,这就相当于是多协程发送了
+			mutex.Lock()
+			conn.ResponseConn.Write(b) //! 这里可能会冲突,毕竟是新协程,可能两个协程向Resp发消息. 因此可以加锁,这样就可以保证同时间没有多个协程向Resp发送消息.
+			mutex.Unlock()
+		}
+
+		// Save Record to DataBase.
+		if r.Code == errmsg.OK_SUCCESS {
+			now := time.Now().Format("2006-01-02 15:04:02")
+			record := model.File{
+				Filetime:     now,
+				FileSize:     file.Size,
+				Filename:     file.Filename,
+				SrcName:      file.SrcName,
+				FileLocation: newfile,
+				SrcID:        file.SrcID,
+				DestID:       file.DestID,
+				FileType:     model.GROUPFILE,
+				FileState:    model.STROAGE}
+			model.UploadGroupFile(&record)
+		}
+
+		f.Close() //* 最后关文件
+	}()
 }
 
-// viewgroupfiles
+// View Group Files
 func ViewGroupFiles(json []byte) {
 	var (
 		lens   int
@@ -141,12 +154,12 @@ func ViewGroupFiles(json []byte) {
 	// Get Conn
 	if conns, ok := AllUsers.Load(file.SrcID); ok {
 		conn := conns.(Conns)
-		conn.ResponseConn.Write(b)
-		conn.ResponseConn.Write([]byte("\r\n--\r\n"))
+		r := append(b, []byte("\r\n--\r\n")...)
+		conn.ResponseConn.Write(r)
 	}
 }
 
-// deletegroupfile
+// Delete Group File.
 func DeleteGroupFile(json []byte) {
 	var (
 		file     Filetran
@@ -167,7 +180,7 @@ func DeleteGroupFile(json []byte) {
 
 	// 删除文件
 	if location != "" && -1 == strings.Index(location, "../") {
-		if location[0:9] == "tempfile/" {
+		if location[0:9] == tempfile {
 			os.Remove(location)
 		}
 	}
@@ -176,12 +189,13 @@ func DeleteGroupFile(json []byte) {
 	if conns, ok := AllUsers.Load(file.SrcID); ok {
 		conn := conns.(Conns)
 		r, _ := dataencry.Marshal(result)
-		conn.ResponseConn.Write(r)
-		conn.ResponseConn.Write([]byte("\r\n--\r\n"))
+		b := append(r, []byte("\r\n--\r\n")...)
+		conn.ResponseConn.Write(b)
 	}
 }
 
-// downloadgroupfile
+// Download Group File
+// todo 还不能多文件同时下载
 func DownloadGroupFile(json []byte) {
 	var (
 		fileconn net.Conn
@@ -199,14 +213,14 @@ func DownloadGroupFile(json []byte) {
 		fileconn = conn.FileConn
 	}
 
-	if filelocation != "" {
+	if filelocation != "" && filelocation[:13] == "tempfile/group" && -1 == strings.Index(filelocation, "../") {
 		if f, err := os.Open(filelocation); err == nil {
-			sendfile(f, fileconn, filelen)
+			go sendfile(f, fileconn, filelen)
 		}
 	}
 }
 
-// sendpersonalfile
+// Send Personal File
 func SendPersonalFile(json []byte) {
 	var (
 		file Filetran
@@ -272,7 +286,7 @@ func SendPersonalFile(json []byte) {
 	model.PersonFile(&record)
 }
 
-// recvpersonalfile
+// Recv Personal File
 // User select download personalfile
 func RecvPersonalFile(json []byte) {
 	var (
@@ -311,11 +325,13 @@ func receive(f *os.File, conn net.Conn, filelen int64) int {
 
 		// Read From Client.
 		if n, err = conn.Read(buf); err != nil {
+			fmt.Println("read", err.Error())
 			return errmsg.ERR_RECEIVE_ERROR
 		}
 
 		// Write to File
 		if _, err = f.Write(buf[:n]); err != nil {
+			fmt.Println("write", err.Error())
 			return errmsg.ERR_RECEIVE_ERROR
 		}
 	}
@@ -342,8 +358,6 @@ func sendfile(f *os.File, conn net.Conn, filelen int64) int {
 			}
 			return errmsg.ERR_SEND_ERROR
 		}
-
-		fmt.Println(n)
 
 		// Write to Dest.
 		if _, err = conn.Write(buf[:n]); err != nil {

@@ -106,7 +106,7 @@ func InitRouter() {
 }
 
 func Run(url string, json []byte) {
-	fmt.Println(json)
+	fmt.Println(string(json))
 	if fuc, ok := routerv1[url]; ok {
 		fuc(json)
 	}
@@ -120,4 +120,6 @@ func Run(url string, json []byte) {
 	//* File  搭建一个FTP应用.
 	//* 其他API处理速度较快,都是单协程.
 	//* 像File,Video 后续要加的东西较多,且处理时间可能会很长,因此不应算作API里面,应当是属于额外模块.   Chat要加图片消息,语音消息,其实也没什么好加的,Chat还可以继续在API里面,最好是独立为模块
+
+	//* 目前不实现那么多模块,只是在API里面多协程吧,以后优化再按上面为File,Chat,Video另起一个应用.
 }

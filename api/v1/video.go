@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	checkkey = "http://127.0.0.1::8090/control/get?room="
+	checkkey = "http://127.0.0.1:8090/control/get?room="
 )
 
 type Video struct {
@@ -100,6 +100,7 @@ func SendScreen(json []byte) {
 		}
 		result struct {
 			Code int
+			Key  string
 		}
 	)
 
@@ -123,6 +124,9 @@ func SendScreen(json []byte) {
 		result.Code = -1
 		goto WRITE
 	}
+
+	result.Code = errmsg.OK_SUCCESS
+	result.Key = Json.Data
 
 WRITE:
 	r, _ := dataencry.Marshal(result)
