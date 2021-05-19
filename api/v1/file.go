@@ -5,7 +5,6 @@ import (
 	"io"
 	"math/rand"
 	"strings"
-	"sync"
 
 	. "litrocket/common"
 	"litrocket/model"
@@ -22,9 +21,6 @@ const (
 	tempfile = "tempfile/"
 )
 
-// Lock
-var mutex sync.Mutex
-
 //Filetran
 type Filetran struct {
 	Url      string
@@ -36,7 +32,6 @@ type Filetran struct {
 }
 
 // Upload Group File
-// todo 还不能多文件同时上传
 func UploadGroupFile(json []byte) {
 	var (
 		file Filetran
@@ -78,10 +73,7 @@ func UploadGroupFile(json []byte) {
 			r.Url = file.Url
 			result, _ := dataencry.Marshal(r)
 			b := append(result, []byte("\r\n--\r\n")...)
-			//* 这里需要加锁,这样就不会同时间多协程向客户端Resp发送消息,不过有可能第一个协程已经发送一半,而这里又发送,这就相当于是多协程发送了
-			mutex.Lock()
-			conn.ResponseConn.Write(b) //! 这里可能会冲突,毕竟是新协程,可能两个协程向Resp发消息. 因此可以加锁,这样就可以保证同时间没有多个协程向Resp发送消息.
-			mutex.Unlock()
+			conn.FileControlConn.Write(b)
 		}
 
 		// Save Record to DataBase.
@@ -155,7 +147,7 @@ func ViewGroupFiles(json []byte) {
 	if conns, ok := AllUsers.Load(file.SrcID); ok {
 		conn := conns.(Conns)
 		r := append(b, []byte("\r\n--\r\n")...)
-		conn.ResponseConn.Write(r)
+		conn.FileControlConn.Write(r)
 	}
 }
 
@@ -166,7 +158,7 @@ func DeleteGroupFile(json []byte) {
 		location string
 		result   struct {
 			Url  string
-			Code int // -1 failed. errmsg.OK_SUCCESS success.
+			Code int
 		}
 	)
 
@@ -190,12 +182,11 @@ func DeleteGroupFile(json []byte) {
 		conn := conns.(Conns)
 		r, _ := dataencry.Marshal(result)
 		b := append(r, []byte("\r\n--\r\n")...)
-		conn.ResponseConn.Write(b)
+		conn.FileControlConn.Write(b)
 	}
 }
 
 // Download Group File
-// todo 还不能多文件同时下载
 func DownloadGroupFile(json []byte) {
 	var (
 		fileconn net.Conn
@@ -213,7 +204,7 @@ func DownloadGroupFile(json []byte) {
 		fileconn = conn.FileConn
 	}
 
-	if filelocation != "" && filelocation[:13] == "tempfile/group" && -1 == strings.Index(filelocation, "../") {
+	if filelocation != "" && -1 == strings.Index(filelocation, "../") {
 		if f, err := os.Open(filelocation); err == nil {
 			go sendfile(f, fileconn, filelen)
 		}
@@ -249,41 +240,44 @@ func SendPersonalFile(json []byte) {
 		handlelog.Handlelog("WARNING", "sendpersonalfile"+" os.Create:"+err.Error())
 		return
 	}
-	defer f.Close()
 
-	// Receive File.
-	if conns, ok := AllUsers.Load(file.SrcID); ok {
-		conn := conns.(Conns)
-		r.Url = file.Url
-		r.Code = receive(f, conn.FileConn, file.Size)
-		result, _ := dataencry.Marshal(r)
+	go func() {
+		// Receive File.
+		if conns, ok := AllUsers.Load(file.SrcID); ok {
+			conn := conns.(Conns)
+			r.Url = file.Url
+			r.Code = receive(f, conn.FileConn, file.Size)
+			result, _ := dataencry.Marshal(r)
+			b := append(result, []byte("\r\n--\r\n")...)
+			conn.FileControlConn.Write(b)
+		}
 
-		conn.ResponseConn.Write(result)
-		conn.ResponseConn.Write([]byte("\r\n--\r\n"))
-	}
+		// Send Mess
+		if conns, ok := AllUsers.Load(file.DestID); ok {
+			conn := conns.(Conns)
+			file.Url = "file/come"
+			b, _ := dataencry.Marshal(file)
+			res := append(b, []byte("\r\n--\r\n")...)
+			conn.FileControlConn.Write(res)
+		}
 
-	// Send Mess
-	if conns, ok := AllUsers.Load(file.DestID); ok {
-		conn := conns.(Conns)
-		conn.FileConn.Write(json)
-		conn.FileConn.Write([]byte("\r\n--\r\n"))
-		return
-	}
+		// Save to DB
+		now := time.Now().Format("2006-01-02 15:04:02")
+		record := model.File{
+			Filetime:     now,
+			FileSize:     file.Size,
+			Filename:     file.Filename,
+			SrcName:      file.SrcName,
+			FileLocation: newfile,
+			SrcID:        file.SrcID,
+			DestID:       file.DestID,
+			FileType:     model.PERSONFILE,
+			FileState:    model.NOSEND}
 
-	// Save to DB
-	now := time.Now().Format("2006-01-02 15:04:02")
-	record := model.File{
-		Filetime:     now,
-		FileSize:     file.Size,
-		Filename:     file.Filename,
-		SrcName:      file.SrcName,
-		FileLocation: newfile,
-		SrcID:        file.SrcID,
-		DestID:       file.DestID,
-		FileType:     model.PERSONFILE,
-		FileState:    model.NOSEND}
+		model.PersonFile(&record)
 
-	model.PersonFile(&record)
+		f.Close()
+	}()
 }
 
 // Recv Personal File
@@ -364,6 +358,8 @@ func sendfile(f *os.File, conn net.Conn, filelen int64) int {
 			return errmsg.ERR_SEND_ERROR
 		}
 	}
+
+	f.Close()
 
 	return errmsg.OK_SUCCESS
 }

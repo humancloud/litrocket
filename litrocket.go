@@ -53,6 +53,7 @@ func ReadConfig() {
 	common.RequestAddr = server.Key("RequestServer").MustString("")
 	common.ResponseAddr = server.Key("ResponseServer").MustString("")
 	common.ChatAddr = server.Key("ChatServer").MustString("")
+	common.FileControlAddr = server.Key("FileControl").MustString("")
 	common.FileAddr = server.Key("FileServer").MustString("")
 	common.VideoAddr = server.Key("VideoServer").MustString("")
 
@@ -83,6 +84,11 @@ func InitServers() {
 		handlelog.Handlelog("FATAL", "Init ChatServer Error"+err.Error())
 	}
 	handlelog.Handlelog("INFO", "Init ChatServer ok "+common.ChatAddr)
+
+	if common.FileControlListener, err = net.Listen("tcp", common.FileControlAddr); err != nil {
+		handlelog.Handlelog("FATAL", "Init FileControl Error"+err.Error())
+	}
+	handlelog.Handlelog("INFO", "Init FileControl ok "+common.ChatAddr)
 
 	if common.FileListener, err = net.Listen("tcp", common.FileAddr); err != nil {
 		handlelog.Handlelog("FATAL", "Init FileServer Error"+err.Error())

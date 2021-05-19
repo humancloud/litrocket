@@ -14,11 +14,12 @@ var (
 	AppMode string
 
 	// Server Listener Addr.
-	RequestAddr  string
-	ResponseAddr string
-	ChatAddr     string
-	FileAddr     string
-	VideoAddr    string
+	RequestAddr     string
+	ResponseAddr    string
+	ChatAddr        string
+	FileControlAddr string
+	FileAddr        string
+	VideoAddr       string
 
 	// DataBase Config.
 	DbHost string
@@ -30,20 +31,22 @@ var (
 
 // All Listeners of an user.
 var (
-	RequestListener  net.Listener
-	ResponseListener net.Listener
-	ChatListener     net.Listener
-	FileListener     net.Listener
-	VideoListener    net.Listener
+	RequestListener     net.Listener
+	ResponseListener    net.Listener
+	ChatListener        net.Listener
+	FileControlListener net.Listener
+	FileListener        net.Listener
+	VideoListener       net.Listener
 )
 
 // All Connections of an user.
 type Conns struct {
-	RequestConn  net.Conn
-	ResponseConn net.Conn
-	ChatConn     net.Conn
-	FileConn     net.Conn
-	VideoConn    net.Conn
+	RequestConn     net.Conn
+	ResponseConn    net.Conn
+	ChatConn        net.Conn
+	FileControlConn net.Conn
+	FileConn        net.Conn
+	VideoConn       net.Conn
 }
 
 // Aes Key to encrypt password.

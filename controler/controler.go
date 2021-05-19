@@ -137,6 +137,12 @@ func ConnectWithServer(mainconn net.Conn, conns *common.Conns) error {
 	}
 	handlelog.Handlelog("INFO", "Connect ok with ChatServer")
 
+	// FileControl
+	if conns.FileControlConn, err = ConnectServer(i, ip, common.FileControlListener); err != nil {
+		return err
+	}
+	handlelog.Handlelog("INFO", "Connect ok with FileControl")
+
 	// FileServer
 	if conns.FileConn, err = ConnectServer(i, ip, common.FileListener); err != nil {
 		return err
