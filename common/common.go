@@ -20,6 +20,7 @@ var (
 	FileControlAddr string
 	FileAddr        string
 	VideoAddr       string
+	ImageAddr       string
 
 	// DataBase Config.
 	DbHost string
