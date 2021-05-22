@@ -5,6 +5,7 @@ import (
 	"litrocket/common"
 	"litrocket/controler"
 	"litrocket/model"
+	article "litrocket/moudle/Article"
 	image "litrocket/moudle/Image"
 	"litrocket/router"
 	"litrocket/utils/handlelog"
@@ -58,6 +59,7 @@ func ReadConfig() {
 	common.FileAddr = server.Key("FileServer").MustString("")
 	common.VideoAddr = server.Key("VideoServer").MustString("")
 	common.ImageAddr = server.Key("ImageServer").MustString("")
+	common.ArticleAddr = server.Key("ArticleServer").MustString("")
 
 	common.DbHost = db.Key("DbHost").MustString("localhost")
 	common.DbUser = db.Key("DbUser").MustString("root")
@@ -103,6 +105,8 @@ func InitServers() {
 	handlelog.Handlelog("INFO", "Init VideoServer ok "+common.VideoAddr)
 
 	go image.InitImageServer()
+
+	go article.InitArticle()
 }
 
 // Print String Image.

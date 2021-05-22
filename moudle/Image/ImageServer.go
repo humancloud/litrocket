@@ -3,7 +3,6 @@ package image
 import (
 	"crypto/md5"
 	"encoding/base64"
-	"fmt"
 	"io/ioutil"
 	"litrocket/common"
 
@@ -38,11 +37,12 @@ func GetImg(w http.ResponseWriter, r *http.Request) {
 
 func UploadImg(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-	case http.MethodPost:
-		doPost(w, r)
+	case http.MethodPut:
+		PutImg(w, r)
 	}
 }
 
+// GetImage
 func doGet(w http.ResponseWriter, r *http.Request) {
 	var (
 		file string
@@ -56,33 +56,37 @@ func doGet(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if f, err = os.Open(file); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	defer f.Close()
 
+	w.WriteHeader(http.StatusOK)
 	for {
 		n, err := f.Read(buf)
 		if n == 0 || err != nil {
 			break
 		}
-		w.Write(buf)
+		w.Write(buf[:n])
 	}
 }
 
-// /image POST HTTP\r\n
-func doPost(w http.ResponseWriter, r *http.Request) {
+// Put Image
+func PutImg(w http.ResponseWriter, r *http.Request) {
 	var result struct {
 		Link string
 	}
 
-	r.ParseForm()
+	if err := r.ParseForm(); err != nil {
+		return
+	}
 
 	Key := r.Form.Get("securtkey")
 
 	h := md5.New()
 	h.Write([]byte(common.AESKEY))
 	if Key != base64.StdEncoding.EncodeToString(h.Sum(nil)) {
-		fmt.Println(Key)
+		w.WriteHeader(http.StatusForbidden)
 		return
 	}
 
@@ -90,7 +94,8 @@ func doPost(w http.ResponseWriter, r *http.Request) {
 	dir := tempfile + "Image"
 	if _, err := os.Stat(dir); err != nil && !os.IsExist(err) {
 		if err = os.MkdirAll(dir, os.ModePerm); err != nil {
-			handlelog.Handlelog("WARNING", "uploadgroupfile+mkdir"+err.Error())
+			handlelog.Handlelog("WARNING", "Image+mkdir"+err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
@@ -99,17 +104,20 @@ func doPost(w http.ResponseWriter, r *http.Request) {
 	newfile := dir + "/" + time.Now().Format("2006-01-02-15:04:02") + strconv.Itoa(rand.Intn(100))
 	f, err := os.Create(newfile)
 	if err != nil {
-		handlelog.Handlelog("WARNING", "groupfile"+"addgroupfile"+"os.Create"+err.Error())
+		handlelog.Handlelog("WARNING", "image"+"addimage"+"os.Create"+err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	defer f.Close()
 
 	if r.ContentLength > 1024*1024*10 {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	content, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

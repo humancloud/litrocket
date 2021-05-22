@@ -21,6 +21,7 @@ var (
 	FileAddr        string
 	VideoAddr       string
 	ImageAddr       string
+	ArticleAddr     string
 
 	// DataBase Config.
 	DbHost string
