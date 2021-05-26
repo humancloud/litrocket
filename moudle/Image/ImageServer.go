@@ -48,7 +48,6 @@ func doGet(w http.ResponseWriter, r *http.Request) {
 		file string
 		f    *os.File
 		err  error
-		buf  = make([]byte, 65536)
 	)
 
 	if file = r.URL.Path[1:]; file == "" {
@@ -61,14 +60,20 @@ func doGet(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
-	w.WriteHeader(http.StatusOK)
-	for {
-		n, err := f.Read(buf)
-		if n == 0 || err != nil {
-			break
-		}
-		w.Write(buf[:n])
+	info, _ := f.Stat()
+	if info.Size() > 1024*1024*5 {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
+
+	w.WriteHeader(http.StatusOK)
+	content, err := ioutil.ReadAll(f)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(content)
 }
 
 // Put Image
@@ -110,7 +115,7 @@ func PutImg(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
-	if r.ContentLength > 1024*1024*10 {
+	if r.ContentLength > 1024*1024*5 { //* 不大于5MB
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

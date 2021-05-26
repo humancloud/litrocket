@@ -179,5 +179,23 @@ func EditFriendNotes(json []byte) {
 
 // 查询数据库一度好友,添加至邻接表
 func FriendRecommand(json []byte) {
+	var (
+		ReComd struct {
+			Url string
+			Id  UserID
+		}
 
+		result struct {
+			Url  string
+			Name []string
+		}
+	)
+
+	if err := dataencry.Unmarshal(json, &ReComd); err != nil {
+		return
+	}
+
+	result.Url = ReComd.Url
+
+	//
 }

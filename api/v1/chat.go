@@ -1,26 +1,16 @@
 package apiv1
 
 import (
-	"io"
 	. "litrocket/common"
 	"litrocket/model"
 	"litrocket/utils/dataencry"
-	"litrocket/utils/handlelog"
-	"math/rand"
 	"net"
-	"os"
-	"strconv"
-	"time"
-)
-
-const (
-	tempdir = "tempfile/"
 )
 
 //ChatMess strorage message
 type ChatMess struct {
 	Url        string
-	MessFormat int    // 0 word. 1 image.
+	MessFormat int    // 0 word. 1 file.
 	MessDest   int    // 0 GroupMess，1 PersonalMess.
 	SrcID      UserID // Sender.
 	SrcName    string
@@ -29,7 +19,7 @@ type ChatMess struct {
 	Strmess    string // String Messge.
 }
 
-//ChatServe
+// ChatServe
 func ChatServe(json []byte) {
 	var (
 		err      error
@@ -71,50 +61,48 @@ func groupmess(buf []byte, chatmess *ChatMess) {
 
 // Personal Message.
 func personalmess(buf []byte, chatmess *ChatMess) {
-	var (
-		f   *os.File
-		err error
-	)
-
 	destconn, r := IsOnLine(chatmess.DestID)
 
 	switch r {
 	case 0:
+		// User OnLine.
 		json := append(buf, []byte("\r\n--\r\n")...)
 		destconn.Write(json)
 	case 1:
-		// Image Message.
-		if chatmess.MessFormat == 1 {
-			// Create Dir, dir's name is "tempdir + id"
-			dir := tempdir + strconv.Itoa(int(chatmess.SrcID))
-			if _, err := os.Stat(dir); err != nil && !os.IsExist(err) {
-				if err = os.MkdirAll(dir, os.ModePerm); err != nil {
-					handlelog.Handlelog("WARNING", "personalmess+mkdir"+err.Error())
-					return
-				}
-			}
-			// Create new file to stroage the image.
-			// If Dest is not online, save the image's name to StrMess.
-			file := dir + "/" + time.Now().Format("2006-01-02-15:04:05") + strconv.Itoa(rand.Intn(100))
-			if f, err = os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666); err != nil {
-				handlelog.Handlelog("WARNING", "personalmess+os.open"+err.Error())
-				return
-			}
-
-			io.WriteString(f, chatmess.Strmess)
-			f.Close()
-
-			chatmess.Strmess = file
-		}
-
-		// Save to Db.
+		// If Dest User Is OffLine. Save to Db.
+		json := append(buf, []byte("\r\n--\r\n")...)
+		str := string(json)
 		model.SaveMess(
-			&(chatmess.Strmess),
+			&str,
 			chatmess.SrcID,
 			chatmess.DestID,
 			chatmess.MessDest,
 			chatmess.MessFormat,
 		)
+		// Image Message.
+		// if chatmess.MessFormat == 1 {
+		// 	// Create Dir, dir's name is "tempdir + id"
+		// 	dir := tempdir + strconv.Itoa(int(chatmess.SrcID))
+		// 	if _, err := os.Stat(dir); err != nil && !os.IsExist(err) {
+		// 		if err = os.MkdirAll(dir, os.ModePerm); err != nil {
+		// 			handlelog.Handlelog("WARNING", "personalmess+mkdir"+err.Error())
+		// 			return
+		// 		}
+		// 	}
+		// 	// Create new file to stroage the image.
+		// 	// If Dest is not online, save the image's name to StrMess.
+		// 	file := dir + "/" + time.Now().Format("2006-01-02-15:04:05") + strconv.Itoa(rand.Intn(100))
+		// 	if f, err = os.OpenFile(file, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666); err != nil {
+		// 		handlelog.Handlelog("WARNING", "personalmess+os.open"+err.Error())
+		// 		return
+		// 	}
+
+		// 	io.WriteString(f, chatmess.Strmess)
+		// 	f.Close()
+
+		// 	chatmess.Strmess = file
+		// }
+
 	default:
 		return
 	}

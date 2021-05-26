@@ -252,13 +252,17 @@ func SendPersonalFile(json []byte) {
 			conn.FileControlConn.Write(b)
 		}
 
-		// Send Mess
+		// Send Mess.
+		file.Url = "file/come"
+		b, _ := dataencry.Marshal(file)
+		res := append(b, []byte("\r\n--\r\n")...)
+
 		if conns, ok := AllUsers.Load(file.DestID); ok {
 			conn := conns.(Conns)
-			file.Url = "file/come"
-			b, _ := dataencry.Marshal(file)
-			res := append(b, []byte("\r\n--\r\n")...)
 			conn.FileControlConn.Write(res)
+		} else {
+			str := string(res)
+			model.SaveMess(&str, file.SrcID, file.DestID, 1, 1)
 		}
 
 		// Save to DB
@@ -297,11 +301,10 @@ func RecvPersonalFile(json []byte) {
 		handlelog.Handlelog("WARNING", "recvpersonalfile"+err.Error())
 		return
 	}
-	defer f.Close()
 
 	if conns, ok := AllUsers.Load(file.DestID); ok {
 		conn := conns.(Conns)
-		sendfile(f, conn.FileConn, size)
+		go sendfile(f, conn.FileConn, size)
 	}
 }
 
@@ -357,6 +360,9 @@ func sendfile(f *os.File, conn net.Conn, filelen int64) int {
 		if _, err = conn.Write(buf[:n]); err != nil {
 			return errmsg.ERR_SEND_ERROR
 		}
+
+		// Sleep 125ms 限速
+		time.Sleep(time.Millisecond * 125)
 	}
 
 	f.Close()

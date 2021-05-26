@@ -48,6 +48,7 @@ func getArticle(w http.ResponseWriter, r *http.Request) {
 		Article string
 	}
 
+	// Parse From Args.
 	if err := r.ParseForm(); err != nil {
 		return
 	}
@@ -56,10 +57,28 @@ func getArticle(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("[%q]=%q", k, v)
 	}
 
-	ID, _ := strconv.Atoi(r.Form.Get("id"))
-	ArtID, _ := strconv.Atoi(r.Form.Get("articleid"))
-	Key := r.Form.Get("securtkey")
+	// Arg : id
+	ID, err := strconv.Atoi(r.Form.Get("id"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
+	// Arg : articleid
+	ArtID, _ := strconv.Atoi(r.Form.Get("articleid"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// Arg : securtkey
+	Key := r.Form.Get("securtkey")
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// Check Securt Key.
 	h := md5.New()
 	h.Write([]byte(common.AESKEY))
 	if Key != base64.StdEncoding.EncodeToString(h.Sum(nil)) {
@@ -67,12 +86,14 @@ func getArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Search From Db.
 	arts := model.SearchArticleById(common.UserID(ArtID), common.UserID(ID))
 	if len(arts) == 0 {
 		w.WriteHeader(http.StatusNotFound) // 404
 		return
 	}
 
+	// Open File.
 	f, err := os.Open(arts[0].Content)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -80,6 +101,7 @@ func getArticle(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
+	// Write Back.
 	result.Id = int(arts[0].ID)
 	content, _ := io.ReadAll(f)
 	result.Article = string(content)
@@ -89,10 +111,11 @@ func getArticle(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
-// 获取用户的所有动态的ID
+// 获取用户的所有动态
 func GetAllArticle(w http.ResponseWriter, r *http.Request) {
 	var Code struct {
 		Code []int
+		Art  []string
 	}
 	if err := r.ParseForm(); err != nil {
 		return
@@ -107,8 +130,13 @@ func GetAllArticle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	Code.Code = make([]int, artlen)
+	Code.Art = make([]string, artlen)
 	for i := 0; i < artlen; i++ {
 		Code.Code[i] = int(art[i].ID)
+		f, _ := os.Open(art[i].Content)
+		b, _ := ioutil.ReadAll(f)
+		Code.Art[i] = string(b)
+		f.Close()
 	}
 
 	b, _ := dataencry.Marshal(Code)
@@ -152,12 +180,7 @@ func putArticle(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
-	if r.ContentLength > 1024*1024*10 {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	if r.ContentLength > 1024*1024*10 {
+	if r.ContentLength > 1024*1024*5 { //* 不大于5MB
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

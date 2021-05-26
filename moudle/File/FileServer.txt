@@ -1,0 +1,196 @@
+package file
+
+import (
+	"litrocket/common"
+	. "litrocket/common"
+	"litrocket/model"
+	"litrocket/utils/dataencry"
+	"litrocket/utils/errmsg"
+	"litrocket/utils/handlelog"
+	"math/rand"
+	"net/http"
+	"os"
+	"strconv"
+	"time"
+)
+
+// 上传文件,使用HTTP协议较好,不易出错.
+
+const tempfile = "tempfile/"
+
+func InitFileServer() {
+	http.HandleFunc("/personfile", PersonFile)
+	http.HandleFunc("/viewgroupfile", ViewGroupFile)
+	http.HandleFunc("/groupfile", GroupFile)
+
+	if err := http.ListenAndServe(common.FileAddr, nil); err != nil {
+		handlelog.Handlelog("FATAL", "http ListenAndServe"+err.Error())
+		return
+	}
+}
+
+func PersonFile(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		RecvPersonFile(w, r)
+	case http.MethodPut:
+		SendPersonFile(w, r)
+	}
+}
+
+func GroupFile(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet: // DownLoad
+	case http.MethodPut: // Upload
+	case http.MethodDelete: // Delete
+	}
+}
+
+// Send Personal File
+func SendPersonFile(w http.ResponseWriter, r *http.Request) {
+
+}
+
+// Recv Personal File
+func RecvPersonFile(w http.ResponseWriter, r *http.Request) {
+
+}
+
+// Upload Group File
+func UpLoadGroupFile(w http.ResponseWriter, r *http.Request) {
+	// Parse Form.
+	if err := r.ParseForm(); err != nil {
+		return
+	}
+
+	// Arg : Id
+	GroupId, err := strconv.Atoi(r.Form.Get("Id"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// Arg : FileName
+	Filename := r.Form.Get("FileName")
+	if Filename == "" {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// New Dir, dir's name is "group + groupid"
+	dir := tempfile + "group" + strconv.Itoa(GroupId)
+	if _, err = os.Stat(dir); err != nil && !os.IsExist(err) {
+		if err = os.MkdirAll(dir, os.ModePerm); err != nil {
+			handlelog.Handlelog("WARNING", "uploadgroupfile+mkdir"+err.Error())
+			return
+		}
+	}
+
+	// New File, File's Name Is "tempfile/filename-time-rand number"
+	newfile := dir + "/" + Filename + time.Now().Format("2006-01-02-15:04:02") + strconv.Itoa(rand.Intn(100))
+	f, err := os.Create(newfile)
+	if err != nil {
+		handlelog.Handlelog("WARNING", "groupfile"+"addgroupfile"+"os.Create"+err.Error())
+		return
+	}
+
+	//* 创建新协程来接收文件,不卡主协程,不然文件大的话,时间会很长.
+	go func() {
+		var r struct {
+			Url  string
+			Code int
+		}
+
+		// Receive File.
+		if conns, ok := AllUsers.Load(file.SrcID); ok {
+			conn := conns.(Conns)
+			r.Code = receive(f, conn.FileConn, file.Size)
+			r.Url = file.Url
+			result, _ := dataencry.Marshal(r)
+			b := append(result, []byte("\r\n--\r\n")...)
+			conn.FileControlConn.Write(b)
+		}
+
+		// Save Record to DataBase.
+		if r.Code == errmsg.OK_SUCCESS {
+			now := time.Now().Format("2006-01-02 15:04:02")
+			record := model.File{
+				Filetime:     now,
+				FileSize:     file.Size,
+				Filename:     file.Filename,
+				SrcName:      file.SrcName,
+				FileLocation: newfile,
+				SrcID:        file.SrcID,
+				DestID:       file.DestID,
+				FileType:     model.GROUPFILE,
+				FileState:    model.STROAGE}
+			model.UploadGroupFile(&record)
+		}
+
+		f.Close() //* 最后关文件
+	}()
+}
+
+// View Group File
+func ViewGroupFile(w http.ResponseWriter, r *http.Request) {
+	var (
+		result struct {
+			Files []struct {
+				FileName string
+				FileSize int64
+				FileTime string
+				SrcName  string
+			}
+		}
+	)
+
+	// Parse Form.
+	if err := r.ParseForm(); err != nil {
+		return
+	}
+
+	// Arg : Id
+	GroupId, err := strconv.Atoi(r.Form.Get("Id"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// Search From Db.
+	files := model.ViewGroupFiles(UserID(GroupId))
+	lens := len(files)
+	if lens == 0 {
+		w.WriteHeader(http.StatusNotFound) // 404
+		return
+	}
+
+	// 分配内存
+	result.Files = make([]struct {
+		FileName string
+		FileSize int64
+		FileTime string
+		SrcName  string
+	}, lens)
+	// 赋值
+	for i := 0; i < lens; i++ {
+		result.Files[i].FileName = files[i].Filename
+		result.Files[i].FileSize = files[i].FileSize
+		result.Files[i].FileTime = files[i].Filetime
+		result.Files[i].SrcName = files[i].SrcName
+	}
+
+	// Write Back.
+	b, _ := dataencry.Marshal(result)
+	w.WriteHeader(http.StatusOK)
+	w.Write(b)
+}
+
+// Download Group File
+func DownloadGroupFile(w http.ResponseWriter, r *http.Request) {
+
+}
+
+// Delete Group File
+func DeleteGroupFile(w http.ResponseWriter, r *http.Request) {
+
+}
