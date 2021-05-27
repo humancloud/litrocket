@@ -17,6 +17,7 @@ type ChatMess struct {
 	DestID     UserID // Receiver.
 	DestName   string
 	Strmess    string // String Messge.
+	MsgDate    string // Message Date.
 }
 
 // ChatServe
@@ -70,8 +71,7 @@ func personalmess(buf []byte, chatmess *ChatMess) {
 		destconn.Write(json)
 	case 1:
 		// If Dest User Is OffLine. Save to Db.
-		json := append(buf, []byte("\r\n--\r\n")...)
-		str := string(json)
+		str := string(buf)
 		model.SaveMess(
 			&str,
 			chatmess.SrcID,

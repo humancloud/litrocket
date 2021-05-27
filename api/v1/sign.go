@@ -1,6 +1,9 @@
 package apiv1
 
 import (
+	"crypto/md5"
+	"encoding/base64"
+	"hash"
 	. "litrocket/common"
 	"litrocket/model"
 	"litrocket/utils/dataencry"
@@ -71,6 +74,8 @@ func SignUp(conn net.Conn, sign *Sign) {
 		result struct {
 			Code int
 		}
+		h         hash.Hash
+		md5passwd string
 	)
 
 	// Search User by User's name
@@ -98,7 +103,13 @@ func SignUp(conn net.Conn, sign *Sign) {
 
 	// Add user and info to database.
 	passwd = dataencry.DecryptPasswd(sign.Passwd)
-	_ = model.InsertUser(sign.Name, passwd, sign.Mail)
+
+	// Password Md5 Stroage In Db.
+	h = md5.New()
+	h.Write([]byte(passwd))
+	md5passwd = base64.StdEncoding.EncodeToString(h.Sum(nil))
+
+	_ = model.InsertUser(sign.Name, md5passwd, sign.Mail)
 	result.Code = errmsg.OK_SUCCESS
 	handlelog.Handlelog("INFO", sign.Name+" SignUp success")
 
@@ -115,6 +126,7 @@ func SignIn(conn net.Conn, sign *Sign) (uint, int) {
 		id     uint
 		user   model.User
 		passwd string
+		h      hash.Hash
 	)
 	var result struct {
 		Code int
@@ -136,6 +148,10 @@ func SignIn(conn net.Conn, sign *Sign) (uint, int) {
 
 	// Verify password and user id.
 	passwd = dataencry.DecryptPasswd(sign.Passwd)
+	// Password Md5 Stroage In Db.
+	h = md5.New()
+	h.Write([]byte(passwd))
+	passwd = base64.StdEncoding.EncodeToString(h.Sum(nil))
 	if user.PassWord != passwd {
 		result.Code = errmsg.ERR_WRONGPASSWD
 		goto WRITE
@@ -156,6 +172,7 @@ WRITE:
 
 func ForGotPassWd(conn net.Conn, sign *Sign) {
 	var (
+		h      hash.Hash
 		passwd string
 		result struct {
 			Code int
@@ -183,6 +200,11 @@ func ForGotPassWd(conn net.Conn, sign *Sign) {
 
 	// Update DB.
 	passwd = dataencry.DecryptPasswd(sign.Passwd)
+
+	// Password Md5 Stroage In Db.
+	h = md5.New()
+	h.Write([]byte(passwd))
+	passwd = base64.StdEncoding.EncodeToString(h.Sum(nil))
 	result.Code = model.UpDatePasswd(passwd, sign.Name)
 
 WRITE:

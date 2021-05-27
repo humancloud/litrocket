@@ -45,23 +45,12 @@ func GetUserInfo(json []byte) {
 // Edit User's Image.
 func EditUserImage(json []byte) {
 	var user User
-	var result struct {
-		Url  string
-		Code int
-	}
 
 	if err := dataencry.Unmarshal(json, &user); err != nil {
 		return
 	}
 
-	result.Url = user.Url
-	result.Code = model.UploadUserImage(user.Mess, user.Id)
-
-	if conns, ok := AllUsers.Load(user.Id); ok {
-		conn := conns.(Conns)
-		b, _ := dataencry.Marshal(result)
-		conn.ResponseConn.Write(b)
-	}
+	model.UploadUserImage(user.Mess, user.Id)
 }
 
 func EditUserAge(json []byte) {

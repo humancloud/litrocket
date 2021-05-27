@@ -80,7 +80,7 @@ func InsertUser(Name, Passwd, Mail string) bool {
 func SearchByName(Name string) []User {
 	var users []User
 
-	Db.Where("user_name LIKE ?", "%"+ Name + "%").Find(&users)
+	Db.Where("user_name LIKE ?", "%"+Name+"%").Find(&users)
 
 	return users
 }
@@ -95,7 +95,7 @@ func UpDatePasswd(passwd, name string) int {
 }
 
 func UploadUserImage(img string, ID UserID) int {
-	result := Db.Model(&User{}).Where("id = ?").Update("user_image", img)
+	result := Db.Model(&User{}).Where("id = ?", ID).Update("user_image", img)
 	if result.Error != nil {
 		handlelog.Handlelog("WARNING", "UploadUserImage"+result.Error.Error())
 		return -1

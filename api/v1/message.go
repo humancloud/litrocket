@@ -1,6 +1,7 @@
 package apiv1
 
 import (
+	"fmt"
 	"litrocket/common"
 	. "litrocket/common"
 	"litrocket/model"
@@ -17,7 +18,6 @@ func SendOffLineMess(json []byte) {
 		m      OffLineMess
 		result struct {
 			Url  string
-			Date []string
 			Json []string
 		}
 	)
@@ -30,18 +30,18 @@ func SendOffLineMess(json []byte) {
 
 	mes := model.SendOffLineMess(m.Id)
 	size := len(mes)
-	result.Date = make([]string, size)
 	result.Json = make([]string, size)
 	for i := 0; i < size; i++ {
-		result.Date[i] = mes[i].MsgDate
 		result.Json[i] = mes[i].Message
 	}
 
 	b, _ := dataencry.Marshal(result)
 
+	fmt.Println(string(b))
+
 	if conns, ok := AllUsers.Load(UserID(m.Id)); ok {
 		conn := conns.(Conns)
-		conn.RequestConn.Write(b)
-		conn.RequestConn.Write([]byte("\r\n--\r\n"))
+		conn.ResponseConn.Write(b)
+		conn.ResponseConn.Write([]byte("\r\n--\r\n"))
 	}
 }

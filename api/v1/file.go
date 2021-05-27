@@ -29,6 +29,7 @@ type Filetran struct {
 	Size     int64
 	SrcID    UserID
 	DestID   UserID
+	MsgDate  string
 }
 
 // Upload Group File
@@ -261,7 +262,7 @@ func SendPersonalFile(json []byte) {
 			conn := conns.(Conns)
 			conn.FileControlConn.Write(res)
 		} else {
-			str := string(res)
+			str := string(b)
 			model.SaveMess(&str, file.SrcID, file.DestID, 1, 1)
 		}
 

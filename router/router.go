@@ -33,9 +33,6 @@ const (
 	EditGroupImage    = "edit/groupimage"
 	// Chat Send message
 	SendMess = "send/mess"
-	// My News
-	MyNews  = "upload/mynews"
-	GetNews = "get/news"
 	// File
 	PerSendFile   = "personsend/file"
 	PerRecvFile   = "personrecv/file"
@@ -94,7 +91,6 @@ func InitRouter() {
 	routerv1[DownGroupFile] = apiv1.DownloadGroupFile
 	routerv1[ViewGroupFile] = apiv1.ViewGroupFiles
 	routerv1[DelGroupFile] = apiv1.DeleteGroupFile
-	//news
 	//video
 	routerv1[JoinVideo] = apiv1.JoinScreen
 	routerv1[QuitVideo] = apiv1.QuitScreen

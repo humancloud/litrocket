@@ -19,6 +19,15 @@ type FriResult struct {
 	FriendID UserID
 }
 
+const MAX = 100
+
+type AdMatrix struct {
+	Vexnum int
+	Edgnum int
+	Vexs   [MAX]byte
+	Matrix [MAX][MAX]byte
+}
+
 // Add a friend to table "friend", friend's state is "waiting friend agree".
 func AddFriend(json []byte) {
 	var (
@@ -189,6 +198,8 @@ func FriendRecommand(json []byte) {
 			Url  string
 			Name []string
 		}
+
+		//matrix AdMatrix
 	)
 
 	if err := dataencry.Unmarshal(json, &ReComd); err != nil {
@@ -196,6 +207,5 @@ func FriendRecommand(json []byte) {
 	}
 
 	result.Url = ReComd.Url
-
 	//
 }

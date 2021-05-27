@@ -2,14 +2,18 @@ package controler
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	apiv1 "litrocket/api/v1"
 	"litrocket/common"
+	. "litrocket/common"
 	"litrocket/router"
 	"litrocket/utils/dataencry"
 	"litrocket/utils/handlelog"
 	"net"
+	"strconv"
 	"strings"
+	"time"
 )
 
 // Strorage Url from JSON data.
@@ -74,6 +78,9 @@ func HandleData(conn net.Conn) {
 	// Store all connections to Map.
 	common.AllUsers.Store(id, conns)
 
+	//* 开启心跳协程,每一个客户端都有一个
+	go HeartBeat(id)
+
 	last = []byte("") //没有的话,解析json会报错,有无效字符'\x00'
 
 	// Handle data.
@@ -84,7 +91,7 @@ func HandleData(conn net.Conn) {
 		//* 并不是每一Read都能得到准确的JSON,因为是TCP,客户端发的快可能一次Read获得多个JSON,发的慢可能一次一个JSON.
 		//* 所以规定发来的JSON以\r\n--\r\n为结尾,这样就能分开了.
 		if n, err = conn.Read(buf); err == io.EOF {
-			common.AllUsers.Delete(id)
+			// 连接断开关闭协程
 			return
 		}
 
@@ -183,4 +190,21 @@ func ConnectServer(i int, ip string, listener net.Listener) (net.Conn, error) {
 	}
 
 	return conn, nil
+}
+
+func HeartBeat(Id common.UserID) {
+	buf := make([]byte, 5)
+	for {
+		time.Sleep(time.Second * 3) // 3 second.
+		fmt.Println("holad...")
+		if conns, ok := common.AllUsers.Load(UserID(Id)); ok {
+			conn := conns.(common.Conns)
+			conn.RequestConn.Write([]byte("isonline")) // * Write不会发生错误总是成功的
+			if _, err := conn.ResponseConn.Read(buf); err != nil {
+				common.AllUsers.Delete(UserID(Id))
+				handlelog.Handlelog("INFO", strconv.Itoa(int(Id))+"Leave")
+				return
+			}
+		}
+	}
 }
