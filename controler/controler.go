@@ -195,7 +195,7 @@ func ConnectServer(i int, ip string, listener net.Listener) (net.Conn, error) {
 func HeartBeat(Id common.UserID) {
 	buf := make([]byte, 5)
 	for {
-		time.Sleep(time.Second * 3) // 3 second.
+		time.Sleep(time.Second * 3) // 3 second.  ___|___|___|___  服务端每三秒一次,客户端等五秒,客户端在任意时刻等5秒,正常情况下5秒内必然有数据发向客户端
 		fmt.Println("holad...")
 		if conns, ok := common.AllUsers.Load(UserID(Id)); ok {
 			conn := conns.(common.Conns)

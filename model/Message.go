@@ -37,5 +37,6 @@ func SaveMess(mess *string, SrcID, DestID UserID, MessDest, MessFormat int) {
 func SendOffLineMess(DestID UserID) []Message {
 	var mes []Message
 	Db.Where("dest_id = ?", DestID).Find(&mes)
+	Db.Where("dest_id = ?", DestID).Delete(Message{})
 	return mes
 }
